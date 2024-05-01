@@ -3,7 +3,7 @@ require("dotenv").config();
 const { Router } = require("express");
 const UserModel = require("./user.model");
 const app = Router();
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const SECRET_TOKEN = process.env.SECRET_TOKEN;
 
@@ -60,8 +60,9 @@ app.post("/login", async (req, res) => {
   if (!User) return res.status(404).send("User Not Found");
 
   try {
-    const match = bcrypt.compare(password, User.password);
+    const match = await bcrypt.compare(password, User.password);
     if (match) {
+      console.log(match);
       const token = await jwt.sign(
         {
           _id: User.id,
@@ -75,7 +76,7 @@ app.post("/login", async (req, res) => {
           expiresIn: "7 days",
         }
       );
-
+      console.log(match);
       const mailOptions = {
         from: {
             name:"Ashutosh Kumar",
@@ -97,15 +98,16 @@ app.post("/login", async (req, res) => {
   }
 
     sendMail(transporter,mailOptions);
+    console.log(match);
 
       return res
         .status(200)
-        .send({ message: "Login success", token, refresh_token, email });
+        .send({ message: "Login success", token, email });
     } else {
       return res.status(401).send({ message: "Authentication Failed" });
     }
   } catch {
-    return res.status(401).send({ message: "Authentication Failed" });
+    return res.status(401).send({ message: "Authentication Failed error" });
   }
 });
 
