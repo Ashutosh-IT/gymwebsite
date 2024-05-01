@@ -1,26 +1,12 @@
 import React, { useState } from 'react'
-import { AspectRatio, Image } from '@chakra-ui/react'
+import {  Image } from '@chakra-ui/react'
 import {
-  Flex,
-  Box,
-  FormControl,
-  FormLabel,
-  Input,
-  Checkbox,
-  Stack,
-  Link,
-  Button,
-  Heading,
-  Text,
-  useColorModeValue,
+  Box
 } from '@chakra-ui/react';
 import ForgotPasswordForm from './forgotPassword';
 import LoginForm from './LoginForm';
 import ResetPasswordForm from './ResetPassword';
 import VerifyEmailForm from './EmailCard';
-import axios from 'axios';
-import { useDispatch } from 'react-redux';
-import { ForegetPassword } from '../../../redux/auth/auth.actions';
 
 import gymbro from "../assets/gymBro.gif"
 
@@ -30,10 +16,6 @@ const Login = () => {
   const [otp,setOtp] =useState(false);
   const [login,setLogin]=useState(true);
 
-  
-
-
-  const dispatch = useDispatch()
 
 const handleForgot=()=>{
   setForget(true)

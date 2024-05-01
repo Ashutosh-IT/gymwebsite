@@ -6,11 +6,8 @@ import {
   Input,
   Checkbox,
   Stack,
-  Link,
   Button,
   Heading,
-  Text,
-  useColorModeValue,
   useToast,
 } from "@chakra-ui/react";
 import { useState } from "react";
@@ -21,7 +18,7 @@ import Loading from "../../Loading";
 
 export default function LoginForm({ handleForgot }) {
 
-  const { isAuth, loading, error, errorMessage } = useSelector(
+  const { isAuth, loading } = useSelector(
     (store) => store.auth)
 
   const [user, setUser] = useState({ email: "", password: "" });
@@ -71,7 +68,6 @@ export default function LoginForm({ handleForgot }) {
     let token = JSON.parse(localStorage.getItem("token"))
     
     dispatch(getUserData(token.email))
- //console.log(token.email)
     return <Navigate to="/" />;
   }
  
@@ -80,24 +76,8 @@ export default function LoginForm({ handleForgot }) {
 
 
   return (
-    // position={"relative"}
     <Box zIndex={500} >
-      {/* <video
-          style={{ "object-fit": "cover", position: "fixed", "z-index": -1 }}
-          width={"100%"}
-          autoPlay
-          loop
-          muted
-          src="https://www.meesho.io/img/tech-at-meesho/TechBanner.mp4"
-        ></video> */}
-
       <Flex
-        // position={"absolute"}
-        // top="0"
-        // right="500"
-        //  left="50%"
-        //  transform="(-50%, 0)"
-
         zIndex={100}
         align={"center"}
         justify={"center"}
@@ -111,8 +91,6 @@ export default function LoginForm({ handleForgot }) {
           <Box
             rounded={"lg"}
             zIndex={100}
-            // bg="white"
-            // bg={useColorModeValue('white', 'gray.700')}
             bg="whiteAlpha.300"
             boxShadow={"lg"}
             p={8}
