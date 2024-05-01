@@ -6,18 +6,18 @@ const app = Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const SECRET_TOKEN = process.env.SECRET_TOKEN;
-const SECRET_REFRESH_TOKEN = process.env.SECRET_REFRESH_TOKEN;
 
 const nodemailer = require("nodemailer");
 const CartModel = require("../cart/cart.model");
-
-const blackList = [];
-
+const OTP = require("./otpModel");
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service:"gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
-    user: process.env.EMAIL,
-    pass: process.env.PASSWORD,
+    user: process.env.USER_EMAIL,
+    pass: process.env.EMAIL_APP_PASSWORD,
   },
 });
 
@@ -39,7 +39,7 @@ app.get("/:email", async (req, res) => {
     return res.status(200).send(data);
   }
 
-  return res.send(404)
+  return res.send("404")
 
 });
 
@@ -56,14 +56,13 @@ app.post("/login", async (req, res) => {
     return res.status(403).send("Enter Credianteials");
   }
   const User = await UserModel.findOne({ email });
- // console.log(User)
- // if (!User) return res.status(404).send("User Not Found");
+ 
+  if (!User) return res.status(404).send("User Not Found");
 
   try {
-    const match = bcrypt.compareSync(password, User.password);
+    const match = bcrypt.compare(password, User.password);
     if (match) {
-      //login
-      const token = jwt.sign(
+      const token = await jwt.sign(
         {
           _id: User.id,
           name: User.username,
@@ -71,39 +70,34 @@ app.post("/login", async (req, res) => {
           email:User.email,
           password: User.password,
         },
-        
+        process.env.SECRET_TOKEN,
         {
           expiresIn: "7 days",
         }
       );
-      const refresh_token = jwt.sign(
-        {
-          _id: User.id,
-          name: User.username,
-          role: User.role,
-          email:User.email,
-          password: User.password,
-        },
-        "op",
-        {
-          expiresIn: "28 days",
-        }
-      );
-      const mailOptions = {
-        from: "kashu19march@gmail.com",
-        to: email,
-        subject: `Login Successfull`,
-        html: `<h1>your ACcount Login Successfull  </h1>`,
-      };
 
-      transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          console.log("ERROR", err);
-        } else {
-          console.log("EMAIL SEND" + info.response);
-          return res.status(201).send(`${role} created successfully`);
-        }
-      });
+      const mailOptions = {
+        from: {
+            name:"Ashutosh Kumar",
+            address:process.env.USER_EMAIL
+        },
+        to: email, // list of receivers
+        subject: "Login Successful", // Subject line              
+        html: "<b>Account Login Successfully</b>", // html body
+    }
+
+    const sendMail = async(transporter,mailOptions) => {
+      try{
+          await transporter.sendMail(mailOptions);
+          console.log("message sent successfilly");
+      }
+      catch(error){
+          console.log(error);
+      }
+  }
+
+    sendMail(transporter,mailOptions);
+
       return res
         .status(200)
         .send({ message: "Login success", token, refresh_token, email });
@@ -136,17 +130,15 @@ app.post("/signup", async (req, res) => {
   if (!email || !password || !username) {
     return res.status(403).send("Enter Credentails");
   }
+
   try {
-    const exsist = await UserModel.findOne({ email });
-    if (exsist)
+    const exist = await UserModel.findOne({ email });
+    if (exist)
       return res
         .status(403)
         .send({ message: "User Already Created Try Logging in" });
 
-    bcrypt.hash(password, 6, async function (err, hash) {
-      if (err) {
-        return res.status(403).send({ message: "Connection has failed" });
-      }
+      const hash = await bcrypt.hash(password,10);
 
       const user = await UserModel({
         email,
@@ -167,32 +159,37 @@ app.post("/signup", async (req, res) => {
       
     
       const mailOptions = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: `Sign Up Successfull`,
-        html: `<h1>${username} Account Sign Up Successfull  </h1>`,
-      };
+        from: {
+            name:"Ashutosh Kumar",
+            address:process.env.USER_EMAIL
+        },
+        to: email, // list of receivers
+        subject: "Account Created", // Subject line
+        text: "Your Account has been created successfully", // plain text body                
+        html: "<b>Account Created Successfully</b>", // html body
+    }
 
-      transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          console.log("ERROR", err);
-        } else {
-          console.log("EMAIL SEND" + info.response);
-          return res.status(201).send(`user created successfully,${username}`);
-        }
-      });
-    });
-  } catch (er) {
+    const sendMail = async(transporter,mailOptions) => {
+      try{
+          await transporter.sendMail(mailOptions);
+          console.log("message sent successfilly");
+      }
+      catch(error){
+          console.log(error);
+      }
+  }
+
+  sendMail(transporter,mailOptions);
+
+  }
+  catch (er) {
     return res.status(404).send(er.message);
   }
 });
 
-let MYOTP = 0;
-let flag = false;
 
 app.post("/reset-password/getOtp", async (req, res) => {
   const { email } = req.body;
- console.log(req.body)
   if (!email) {
     return res.status(403).send("Enter Valid Email");
   }
@@ -203,43 +200,72 @@ app.post("/reset-password/getOtp", async (req, res) => {
     return res.status(403).send("Account with this email Not Found");
   }
 
-  try {
-    MYOTP = Math.floor(100000 + Math.random() * 900000);
-    MYOTP = MYOTP.toString();
-    const mailOptions = {
-      from: process.env.EMAIL,
-      to: email,
-      subject: `RESET PASSWORD`,
-      html: `<h1>OTP is ${MYOTP}</h1>`,
-    };
+  const otpexists = await OTP.findOne({ email });
+  if(otpexists){
+    return res.status(403).send("OTP already sent");
+  }
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.log("ERROR", err);
-      } else {
-        console.log("EMAIL SEND" + info.response);
-        return res.status(200).send(`OTP SENDED SUCCESSFULLY`);
+  try {
+    let otp = Math.floor(100000 + Math.random() * 900000);
+    otp = otp.toString();
+
+    await OTP.create({ email,otp });
+
+     const mailOptions = {
+            from: {
+                name:"Ashutosh Kumar",
+                address:process.env.USER_EMAIL
+            },
+            to: email, // list of receivers
+            subject: "Password Reset OTP", // Subject line               
+            html: `<h1>OTP is ${otp}</h1>`, // html body
+    }
+
+    const sendMail = async(transporter,mailOptions) => {
+      try{
+          await transporter.sendMail(mailOptions);
+          console.log("message sent successfilly");
       }
-    });
+      catch(error){
+          console.log(error);
+      }
+  }
+
+  sendMail(transporter,mailOptions);
+
+  return res.status(200).json({
+    message:"otp sent successfully",
+    success:true
+});
+
   } catch (er) {
     return res.status(404).send(er.message);
   }
 });
 
 app.post("/reset-password/verifyOtp", async (req, res) => {
-  const { otp } = req.body;
+  const { email,otp } = req.body;
   if (!otp) {
     return res.status(404).send("Enter Otp");
   }
 
   try {
-    console.log(MYOTP, otp)
-    if (+MYOTP == +otp) {
-      flag = true;
-      return res.status(201).send("Otp Verified");
-    }
+    const otpexists = await OTP.findOne({ email });
+        if(!otpexists){
+            return res.status(403).send("otp expires");
+        }
 
-    return res.status(404).send("Wrong Otp");
+        const match = otp.toString() === otpexists.otp;
+        if(!match){
+            return res.status(403).send("enter valid otp");
+        }
+
+        await OTP.findOneAndUpdate({email},{flag:true});
+
+        return res.status(200).json({
+            message:"otp verified successfully",
+            success:true
+        });
   } catch (er) {
     return res.status(404).send(er.message);
   }
@@ -250,93 +276,67 @@ app.post("/reset-password/reset", async (req, res) => {
   if (!email || !password) {
     return res.status(403).send("Enter credentails");
   }
-  if (!flag) {
-    return res.status(401).send("Un-authorized");
-  }
-
+ 
   try {
-    const hash = bcrypt.hashSync(password, 10);
-    // await user.save()
-    //console.log(hash);
-    const data = await UserModel.findOneAndUpdate(
-      { email },
-      { password: hash },
-      { new: true }
-    );
-    flag = false;
+    const otp = await OTP.findOne({email});
+        if(!otp){
+            return res.status(403).send("session expired!");
+        }
 
-    const mailOptions = {
-      from: process.env.EMAIL,
-      to: email,
-      subject: `Password Updated Successfully`,
-      html: `<h1>Your Passwrod Updated Successfully</h1>`,
-    };
+        if(!otp.flag){
+            return res.status(403).send("un-authorized");
+        }
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.log("ERROR", err);
-      } else {
-        console.log("EMAIL SEND" + info.response);
-        return res.status(200).send(`Users Password Updated Successfully `);
+        await OTP.findOneAndDelete({email});
+
+        const hash = await bcrypt.hash(password, 10);
+        const data = await User.findOneAndUpdate(
+            { email },
+            { password: hash }
+        );
+
+        const mailOptions = {
+          from: {
+              name:"Ashutosh Kumar",
+              address:process.env.USER_EMAIL
+          },
+          to: email, // list of receivers
+          subject: "Password Updated Successfully", // Subject line               
+          html: `<h1>Your Passwrod Updated Successfully</h1>`, // html body
       }
-    });
+
+      const sendMail = async(transporter,mailOptions) => {
+        try{
+            await transporter.sendMail(mailOptions);
+            console.log("message sent successfilly");
+        }
+        catch(error){
+            console.log(error);
+        }
+    }
+
+    sendMail(transporter,mailOptions);
 
     return res.status(201).send(data);
   } catch (e) {
-    return res.status(502).send("kuch to gadbad he daya");
+    return res.status(502).send("otp cannot be send");
   }
 });
 
-// verify a token. return a new token if it's expired token
-// it will check token is expired or not if its expired then it will return a new Token and add old token into "BLACK LIST"
-// we nee d o pass TWO HEADERS here
-// Two Headers 1 ) ["authorization"] => main token .>> check expired or not > add to blacklist
-//             2 ) ["refresh"] => refresh token .>> if expired main token gernerate and return new Main token with refreshtoken
-// working 1000% with additional features
 app.post("/verify", async (req, res) => {
   const token = req.headers["authorization"];
-  const refreshtoken = req.headers["refresh"];
 
-  if (!token || !refreshtoken) {
+  if (!token) {
     return res.status(401).send("UnAuthorized , no user logged in");
   }
 
   try {
-    if (blackList.includes(refreshtoken)) {
-      return res.status(404).send("token is already expired or blacklisted");
-    }
 
     const decoded = jwt.decode(token);
     let TimeNow_10DIGIT = new Date().getTime().toString();
     TimeNow_10DIGIT = TimeNow_10DIGIT.split("").slice(0, 10).join("");
 
-    const Refreshdecoded = jwt.decode(refreshtoken);
-    let RefreshTimeNow_10DIGIT = new Date().getTime().toString();
-    RefreshTimeNow_10DIGIT = RefreshTimeNow_10DIGIT.split("")
-      .slice(0, 10)
-      .join("");
-
-    // BEFORE = TimeNow_10DIGIT = 1669639747149
-    // decoded.exp = 1669639708
-    // AFTER Operation = TimeNow_10DIGIT = 1669637548
-    // first 10 DIGIT
-
-    //console.log(+TimeNow_10DIGIT > decoded.exp , TimeNow_10DIGIT ,decoded.exp )
-
-    if (+TimeNow_10DIGIT > decoded.exp) {
-      // if it expired
-      blackList.push(token);
-
-      if (+RefreshTimeNow_10DIGIT > Refreshdecoded.exp) {
-        // it means RefreshToken is also Expired
-        blackList.push(refreshtoken);
-        return res
-          .status(404)
-          .send("both token is expired and added to blacklist");
-      }
-
-      const verify = jwt.verify(refreshtoken, refreshKEY);
-      // console.log(verify)
+      const verify = jwt.verify(token,process.env.SECRET_TOKEN);
       if (verify) {
         const Newtoken = jwt.sign(
           {
@@ -345,20 +345,16 @@ app.post("/verify", async (req, res) => {
             age: verify.age,
             role: verify.role,
           }, //data
-          secretKEY,
+          process.env.SECRET_TOKEN,
           { expiresIn: "5 mins" }
         );
         return res
           .status(200)
           .send({ message: `New Token Created`, Newtoken, refreshtoken });
       }
-
-      //console.log(refreshtoken)
       return res.status(404).send("token is expired and added to blacklist");
-    } else {
-      return res.status(200).send("This is Valid MAIN TOKEN");
-    }
-  } catch (e) {
+    } 
+  catch (e) {
     return res.status(502).send("kuch to gadbad he daya");
   }
 });

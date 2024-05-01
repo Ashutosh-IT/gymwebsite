@@ -21,7 +21,7 @@ role: {
     default: "User"
   },
 
-},{versionKey:false})
+});
 
 const UserModel = model("user",UserSchema)
 module.exports=UserModel

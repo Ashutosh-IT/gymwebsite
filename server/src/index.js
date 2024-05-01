@@ -25,7 +25,6 @@ app.use("/products", productRouter);
 app.use("/cart", cartRouter);
 app.use("/user", userRouter);
 app.use("/plan", planRouter);
-
 app.use("/payment", paymentRouter);
 
 
@@ -35,6 +34,7 @@ app.use("/payment", paymentRouter);
 app.get("/", async (req, res) => {
   res.status(200).send("BASE PAGE");
 });
+
 
 app.listen(PORT, async () => {
   await connect();
