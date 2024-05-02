@@ -28,9 +28,6 @@ app.use("/plan", planRouter);
 app.use("/payment", paymentRouter);
 
 
-
-
-
 app.get("/", async (req, res) => {
   res.status(200).send("BASE PAGE");
 });
