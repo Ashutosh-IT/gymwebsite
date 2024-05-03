@@ -67,10 +67,21 @@ export default function Signup() {
         duration: 4000,
         isClosable: true,
       });
-    } else {
+    } 
+    if(user.age<15 || user.age>70 || user.weight < 30 || user.weight>150){
+      toast({
+        title: "Not eligible",
+        description: "Please fill correct details",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+    else {
 
       dispatch(registerUser(user));
       setUser(defaultValues)
+
       toast({
         title: "Your account is created",
         description: "We've created your account for you.",

@@ -33,7 +33,7 @@ export default function LoginForm({ handleForgot }) {
 
   const handleClick = () => {
     
-    if (!user.email || !user.password) {
+    if (!user.email || !user.password ) {
       toast({
         title: "All fields are mandatory",
         description: "Please fill all the details",

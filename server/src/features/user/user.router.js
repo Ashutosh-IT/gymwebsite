@@ -125,6 +125,13 @@ app.post("/signup", async (req, res) => {
     bodyType,
   } = req.body;
 
+
+  if(age<10 || age > 80){
+    return res.status(403).send("you are not eligible");
+  }
+
+
+
   console.log(req.body)
   
   let username = firstName + " "+ lastName
